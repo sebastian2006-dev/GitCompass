@@ -4,7 +4,7 @@
 // syntax-highlighted chat, Supabase sync
 // =============================================================
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'https://gitcompass-api.onrender.com/api';
 
 // ---------------------------------------------------------------------
 // State
