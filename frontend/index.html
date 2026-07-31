@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitCompass — Ask Any Codebase a Question</title>
+    <meta name="description"
+        content="Paste a GitHub URL, watch GitCompass clone, chunk, and index the codebase, then ask natural-language questions grounded in real code with source citations.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCREEN 1 — Landing Page
+         ═══════════════════════════════════════════════════════ -->
+    <div id="landing-page" class="screen landing-page">
+        <!-- Signature visual: a slowly-turning compass rose, needle finding
+             true north, embossed in the same soft neumorphic language as
+             the rest of the UI. Draggable — grab it and spin it by hand.
+             Built at runtime and animated with anime.js (see
+             animateCompassBg / initCompassDrag in app.js). -->
+        <div class="compass-bg" id="compass-bg" aria-hidden="true">
+            <svg class="compass-svg" id="compass-svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
+                <defs>
+                    <filter id="compassEmboss" x="-60%" y="-60%" width="220%" height="220%">
+                        <feDropShadow dx="10" dy="10" stdDeviation="16" flood-color="#0a0a0a" flood-opacity="0.55" />
+                        <feDropShadow dx="-8" dy="-8" stdDeviation="14" flood-color="#262626" flood-opacity="0.4" />
+                    </filter>
+                    <filter id="needleEmboss" x="-80%" y="-80%" width="260%" height="260%">
+                        <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#0a0a0a" flood-opacity="0.5" />
+                    </filter>
+                    <radialGradient id="compassFace" cx="35%" cy="32%" r="75%">
+                        <stop offset="0%" stop-color="#1c1c1c" />
+                        <stop offset="100%" stop-color="#101010" />
+                    </radialGradient>
+                    <linearGradient id="needleNorth" x1="0" y1="1" x2="0" y2="0">
+                        <stop offset="0%" stop-color="#ef4444" stop-opacity="0.55" />
+                        <stop offset="100%" stop-color="#f77c7c" stop-opacity="0.95" />
+                    </linearGradient>
+                    <linearGradient id="needleSouth" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#c99a5b" stop-opacity="0.55" />
+                        <stop offset="100%" stop-color="#e0b779" stop-opacity="0.9" />
+                    </linearGradient>
+                </defs>
+
+                <!-- outer housing -->
+                <circle class="compass-housing compass-interactive" cx="500" cy="500" r="270" fill="url(#compassFace)"
+                    filter="url(#compassEmboss)" />
+                <circle class="compass-housing-rim" cx="500" cy="500" r="270" />
+
+                <!-- rotating bezel: tick marks + cardinal labels, generated in JS -->
+                <g id="compass-bezel" class="compass-bezel"></g>
+
+                <!-- sunken inner dial -->
+                <circle class="compass-dial" cx="500" cy="500" r="146" />
+
+                <!-- needle: settles pointing "north", then idles -->
+                <g id="compass-needle" class="compass-needle">
+                    <polygon class="needle-north" points="500,368 514,500 486,500" fill="url(#needleNorth)"
+                        filter="url(#needleEmboss)" />
+                    <polygon class="needle-south" points="500,632 514,500 486,500" fill="url(#needleSouth)"
+                        filter="url(#needleEmboss)" />
+                    <circle class="needle-hub" cx="500" cy="500" r="15" />
+                    <circle class="needle-hub-core" cx="500" cy="500" r="6" />
+                </g>
+            </svg>
+        </div>
+
+        <div class="landing-content">
+            <div class="landing-logo" id="landing-logo">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" class="landing-logo-mark">
+                    <circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.3" />
+                    <path d="M13 7l-2 5-4 1 2-5 4-1z" fill="currentColor" />
+                </svg>
+                GitCompass
+            </div>
+
+            <div class="landing-badge">Open Source</div>
+
+            <h1 class="landing-title" id="landing-title">
+                <span class="title-line title-accent">GitCompass</span>
+            </h1>
+
+            <p class="landing-subtitle" id="landing-subtitle">
+                Paste any GitHub repo. Watch it get cloned, chunked, and indexed.<br>
+                Then ask it anything — answers grounded in the real code, with citations.
+            </p>
+
+            <div class="landing-actions" id="landing-actions">
+                <button id="landing-get-started" class="btn btn-primary btn-lg">
+                    Get Started
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                </button>
+                <button id="landing-sign-in" class="btn btn-ghost btn-lg">Sign In</button>
+            </div>
+
+            <div class="landing-features" id="landing-features">
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                            <path d="M10 2L2 7l8 5 8-5-8-5zM2 13l8 5 8-5" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <span>AST-aware chunking</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                            <circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" />
+                            <path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                    <span>Local embeddings</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                            <path d="M3 10h2l3-6 4 12 3-6h2" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <span>Source citations</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCREEN 2 — Auth (Sign Up / Sign In)
+         ═══════════════════════════════════════════════════════ -->
+    <div id="auth-screen" class="screen auth-screen">
+        <div class="auth-card" id="auth-card">
+            <button id="auth-back-btn" class="auth-back-btn" title="Back to landing">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M12 3L6 9l6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </button>
+
+            <div class="auth-header">
+                <h2 id="auth-title">Create Account</h2>
+                <p id="auth-subtitle">Enter a username and password to get started.</p>
+            </div>
+
+            <form id="auth-form" autocomplete="off">
+                <div class="form-field">
+                    <label for="auth-username">Username</label>
+                    <input type="text" id="auth-username" placeholder="Choose a username" required
+                        autocomplete="username">
+                </div>
+                <div class="form-field">
+                    <label for="auth-password">Password</label>
+                    <input type="password" id="auth-password" placeholder="Min. 6 characters" required minlength="6"
+                        autocomplete="new-password">
+                </div>
+
+                <div id="auth-error" class="auth-error" hidden></div>
+
+                <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-full">
+                    <span id="auth-submit-text">Create Account</span>
+                    <span id="auth-submit-spinner" class="spinner" hidden></span>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <span id="auth-toggle-text">Already have an account?</span>
+                <button id="auth-toggle-btn" class="btn btn-link">Sign In</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCREEN 3 — App Shell (authenticated)
+         ═══════════════════════════════════════════════════════ -->
+    <div id="app-shell" class="screen app">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">GitCompass</span>
+                <button id="new-chat-btn" class="new-chat-btn" title="New chat">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                    New Chat
+                </button>
+            </div>
+            <div class="chat-list" id="chat-list">
+                <!-- chat entries injected here -->
+            </div>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" id="sidebar-user">
+                    <div class="user-avatar" id="user-avatar"></div>
+                    <span class="user-name" id="user-name"></span>
+                </div>
+                <button id="settings-btn" class="settings-btn" title="Settings">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <circle cx="9" cy="9" r="2.5" stroke="currentColor" stroke-width="1.5" />
+                        <path
+                            d="M9 1.5v2M9 14.5v2M1.5 9h2M14.5 9h2M3.4 3.4l1.4 1.4M13.2 13.2l1.4 1.4M3.4 14.6l1.4-1.4M13.2 4.8l1.4-1.4"
+                            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main">
+            <!-- Empty state: no chats yet -->
+            <div class="empty-state" id="empty-state">
+                <div class="empty-icon">
+                    <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                        <rect x="6" y="10" width="36" height="28" rx="4" stroke="currentColor" stroke-width="2" />
+                        <path d="M6 18h36M16 14V10M32 14V10" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" />
+                        <path d="M18 28l4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <h2>No conversations yet</h2>
+                <p>Start a new chat and point it at a GitHub repo to begin asking questions about the code.</p>
+                <button id="empty-new-chat-btn" class="btn btn-primary">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    </svg>
+                    New Chat
+                </button>
+            </div>
+
+            <!-- New chat / ingest form -->
+            <div class="ingest-view" id="ingest-view">
+                <div class="ingest-card">
+                    <h2>New Conversation</h2>
+                    <p class="ingest-hint">Enter a GitHub repo URL. Previously indexed repos start instantly.</p>
+                    <div class="input-group">
+                        <input type="text" id="repo-url" placeholder="https://github.com/user/repo">
+                        <button id="ingest-btn" class="btn btn-primary">Index &amp; Start</button>
+                    </div>
+                    <div id="ingest-status"></div>
+
+                    <div class="known-repos" id="known-repos" hidden>
+                        <div class="known-repos-label">Previously indexed — click to start instantly</div>
+                        <div class="known-repos-list" id="known-repos-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active chat thread (main column + side pipeline panel) -->
+            <div class="chat-view" id="chat-view">
+                <div class="chat-main">
+                    <div class="chat-view-header">
+                        <div class="chat-view-repo" id="chat-view-repo"></div>
+                        <button id="pipeline-reopen-btn" class="pipeline-reopen-btn" title="Show indexing details">
+                            <span class="status-dot"></span>
+                            <span id="pipeline-reopen-label">Indexed</span>
+                        </button>
+                    </div>
+                    <div class="messages" id="messages"></div>
+                    <div class="composer">
+                        <div class="input-group">
+                            <input type="text" id="query-input" placeholder="How does the authentication work?">
+                            <button id="query-btn" class="btn btn-primary">Ask</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live indexing pipeline, docked beside the chat -->
+                <aside class="pipeline-side" id="pipeline-side" hidden>
+                    <div class="pipeline-panel" id="pipeline-panel"></div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         Settings Overlay
+         ═══════════════════════════════════════════════════════ -->
+    <div id="settings-overlay" class="settings-overlay" hidden>
+        <div class="settings-backdrop" id="settings-backdrop"></div>
+        <div class="settings-panel" id="settings-panel">
+            <div class="settings-header">
+                <h3>Settings</h3>
+                <button id="settings-close-btn" class="settings-close-btn" title="Close">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="1.5"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-label">Account</div>
+                <div class="settings-user-info" id="settings-user-info">
+                    <div class="settings-avatar" id="settings-avatar"></div>
+                    <div>
+                        <div class="settings-username" id="settings-username"></div>
+                        <div class="settings-email" id="settings-email"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-label">Actions</div>
+                <button id="settings-switch-btn" class="settings-action-btn">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M2 5h9l-3-3M14 11H5l3 3" stroke="currentColor" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Switch Account
+                </button>
+                <button id="settings-signout-btn" class="settings-action-btn">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 2H4a2 2 0 00-2 2v8a2 2 0 002 2h2M10 12l4-4-4-4M14 8H6" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Sign Out
+                </button>
+                <button id="settings-delete-btn" class="settings-action-btn settings-danger">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path
+                            d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M4 4l1 9a1 1 0 001 1h4a1 1 0 001-1l1-9"
+                            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Delete Account
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         Confirm Dialog (for dangerous actions)
+         ═══════════════════════════════════════════════════════ -->
+    <div id="confirm-dialog" class="confirm-dialog" hidden>
+        <div class="confirm-backdrop"></div>
+        <div class="confirm-card">
+            <h3 id="confirm-title">Are you sure?</h3>
+            <p id="confirm-message">This action cannot be undone.</p>
+            <div class="confirm-actions">
+                <button id="confirm-cancel" class="btn btn-ghost">Cancel</button>
+                <button id="confirm-ok" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/animejs@4.0.1/lib/anime.iife.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

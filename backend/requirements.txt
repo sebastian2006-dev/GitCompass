@@ -1,0 +1,22 @@
+fastapi
+uvicorn
+pydantic
+python-dotenv
+gitpython
+
+# Chunking
+tree-sitter
+tree-sitter-python
+tree-sitter-javascript
+tree-sitter-typescript
+tree-sitter-c
+tree-sitter-cpp
+
+# Embeddings (local, free — no API key needed)
+sentence-transformers
+
+# Vector store (local, free)
+chromadb
+
+# LLM generation
+groq

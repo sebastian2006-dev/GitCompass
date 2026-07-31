@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Env / secrets
+.env
+backend/.env
+
+# Vector store data (regenerated locally)
+backend/chroma_store/
+
+# Node
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
