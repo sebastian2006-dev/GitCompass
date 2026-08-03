@@ -15,8 +15,6 @@ tree-sitter-cpp
 # Embeddings (local, free — no API key needed)
 sentence-transformers
 
-# Vector store (local, free)
-chromadb
 
 # LLM generation
 groq
