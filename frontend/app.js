@@ -138,9 +138,22 @@ function showView(view) {
 // and eases to a stop, then the ambient idle animations (slow bezel
 // turn, needle wobble) resume from wherever it settled.
 
+// Ambient bezel speed, kept in one place so the release-coast can ease
+// *into* it (see onPointerUp) instead of decaying to zero and then
+// hard-cutting to a different speed when startCompassAmbient() kicks in.
+const COMPASS_AMBIENT_MS_PER_TURN = 200000;
+const COMPASS_AMBIENT_DEG_PER_MS = 360 / COMPASS_AMBIENT_MS_PER_TURN;
+
 function initCompassDrag() {
     const svg = document.getElementById('compass-svg');
-    const hitArea = document.querySelector('.compass-interactive');
+    // A transparent circle laid on top of every other compass element
+    // (housing, bezel ticks, dial, needle) so a pointerdown anywhere in
+    // the dial — not just wherever the housing fill happens to be the
+    // topmost paint — starts the drag. Individual child shapes (the
+    // needle polygons, dial circle, tick lines) would otherwise each
+    // swallow their own clicks since they sit above the housing in the
+    // SVG and pointer events don't bubble between unrelated siblings.
+    const hitArea = document.querySelector('.compass-hit-target');
     if (!svg || !hitArea || svg.dataset.dragBound) return;
     svg.dataset.dragBound = 'true';
 
@@ -150,8 +163,8 @@ function initCompassDrag() {
     let baseRotation = 0;
     let lastAngle = 0;
     let lastTime = 0;
-    let angularVelocity = 0; // deg/ms, for release momentum
-    let coastAnim = null;
+    let angularVelocity = 0; // deg/ms, smoothed, for release momentum
+    let coastFrame = null;
 
     const currentRotation = () => {
         const match = /rotate\(([-\d.]+)deg\)/.exec(svg.style.transform || '');
@@ -161,8 +174,15 @@ function initCompassDrag() {
     const angleAt = (clientX, clientY) =>
         Math.atan2(clientY - centerY, clientX - centerX) * (180 / Math.PI);
 
+    const stopCoast = () => {
+        if (coastFrame) {
+            cancelAnimationFrame(coastFrame);
+            coastFrame = null;
+        }
+    };
+
     const onPointerDown = (e) => {
-        if (coastAnim) { coastAnim.pause(); coastAnim = null; }
+        stopCoast();
         stopCompassAmbient();
 
         const rect = svg.getBoundingClientRect();
@@ -192,7 +212,10 @@ function initCompassDrag() {
             // normalize across the -180/180 wrap so velocity doesn't spike
             if (step > 180) step -= 360;
             if (step < -180) step += 360;
-            angularVelocity = step / dt;
+            const instVelocity = step / dt;
+            // Light smoothing so a single jittery mousemove sample right
+            // before release doesn't dictate the whole coast.
+            angularVelocity = angularVelocity * 0.7 + instVelocity * 0.3;
         }
         lastAngle = angle;
         lastTime = now;
@@ -203,24 +226,33 @@ function initCompassDrag() {
         dragging = false;
         try { hitArea.releasePointerCapture(e.pointerId); } catch (_) { }
 
-        const startRotation = currentRotation();
-        // Coast: keep spinning with the release velocity, decaying to a
-        // stop. Purely visual (transform), so it never fights the
-        // ambient bezel-turn animation below, which restarts fresh once
-        // this settles.
-        const velocityDegPerSec = angularVelocity * 1000;
-        const coastDistance = velocityDegPerSec * 0.6; // ~0.6s of decaying travel
-        const target = startRotation + coastDistance;
+        let rotation = currentRotation();
+        let velocity = angularVelocity; // deg/ms
+        let lastFrameTime = performance.now();
+        const FRICTION_PER_16MS = 0.945; // per ~frame velocity retention while coasting
 
-        coastAnim = anime.animate(svg, {
-            transform: [`rotate(${startRotation}deg)`, `rotate(${target}deg)`],
-            duration: Math.min(1400, Math.max(300, Math.abs(coastDistance) * 12)),
-            ease: 'outQuint',
-            onComplete: () => {
-                coastAnim = null;
+        const step = (now) => {
+            const dt = Math.min(now - lastFrameTime, 48); // guard against tab-switch/large jumps
+            lastFrameTime = now;
+
+            // Ease velocity toward the ambient idle speed (not toward
+            // zero) so a hard spin coasts, decelerates, and rolls
+            // straight into the same slow auto-rotation the compass
+            // idles at — one continuous curve, no hand-off jump.
+            const decay = Math.pow(FRICTION_PER_16MS, dt / 16.6);
+            velocity = COMPASS_AMBIENT_DEG_PER_MS + (velocity - COMPASS_AMBIENT_DEG_PER_MS) * decay;
+            rotation += velocity * dt;
+            svg.style.transform = `rotate(${rotation}deg)`;
+
+            if (Math.abs(velocity - COMPASS_AMBIENT_DEG_PER_MS) > 0.0007) {
+                coastFrame = requestAnimationFrame(step);
+            } else {
+                coastFrame = null;
                 startCompassAmbient();
-            },
-        });
+            }
+        };
+
+        coastFrame = requestAnimationFrame(step);
     };
 
     hitArea.addEventListener('pointerdown', onPointerDown);
@@ -229,8 +261,103 @@ function initCompassDrag() {
     window.addEventListener('pointercancel', onPointerUp);
 }
 
+// ---------------------------------------------------------------------
+// Extra landing background ambience: sonar pings + drifting dust +
+// a slow radar sweep, all living behind the compass in the same SVG
+// coordinate space so they stay centered on it. Kept very low-opacity
+// so they read as atmosphere, not decoration competing with the copy.
+// ---------------------------------------------------------------------
+
+function buildCompassSonar() {
+    const group = document.getElementById('compass-sonar');
+    if (!group || group.dataset.built) return;
+
+    const RING_COUNT = 3;
+    for (let i = 0; i < RING_COUNT; i++) {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', '500');
+        circle.setAttribute('cy', '500');
+        circle.setAttribute('r', '40');
+        circle.setAttribute('class', 'sonar-ring');
+        group.appendChild(circle);
+    }
+    group.dataset.built = 'true';
+}
+
+function animateCompassSonar() {
+    buildCompassSonar();
+    if (prefersReducedMotion()) return;
+
+    const rings = document.querySelectorAll('.sonar-ring');
+    rings.forEach((ring, i) => {
+        anime.animate(ring, {
+            r: [40, 470],
+            opacity: [0.2, 0],
+            duration: 5400,
+            delay: i * 1800,
+            loop: true,
+            ease: 'outSine',
+        });
+    });
+}
+
+function buildCompassDust() {
+    const group = document.getElementById('compass-dust');
+    if (!group || group.dataset.built) return;
+
+    const COUNT = 18;
+    for (let i = 0; i < COUNT; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        // Scattered in the open background outside the dial itself
+        // (housing radius is 270), out toward the edges of the SVG.
+        const radius = 280 + Math.random() * 400;
+        const x = 500 + Math.cos(angle) * radius;
+        const y = 500 + Math.sin(angle) * radius;
+
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', x.toFixed(1));
+        dot.setAttribute('cy', y.toFixed(1));
+        dot.setAttribute('r', (1 + Math.random() * 1.6).toFixed(2));
+        dot.setAttribute('class', 'compass-dust-dot');
+        group.appendChild(dot);
+    }
+    group.dataset.built = 'true';
+}
+
+function animateCompassDust() {
+    buildCompassDust();
+    if (prefersReducedMotion()) return;
+
+    const dots = document.querySelectorAll('.compass-dust-dot');
+    dots.forEach((dot) => {
+        anime.animate(dot, {
+            opacity: [0.04, 0.32, 0.04],
+            duration: 3200 + Math.random() * 2600,
+            delay: Math.random() * 2200,
+            loop: true,
+            ease: 'inOutSine',
+        });
+    });
+}
+
+function animateCompassSweep() {
+    const sweep = document.getElementById('compass-sweep');
+    if (!sweep || prefersReducedMotion()) return;
+    if (window._compassSweepAnim) return; // only ever needs to start once
+
+    window._compassSweepAnim = anime.animate(sweep, {
+        rotate: '+=360deg',
+        duration: 42000,
+        loop: true,
+        ease: 'linear',
+    });
+}
+
 function playLandingAnimations() {
     animateCompassBg();
+    animateCompassSonar();
+    animateCompassDust();
+    animateCompassSweep();
     initCompassDrag();
 
     anime.animate('.landing-logo', {
@@ -418,9 +545,13 @@ function startCompassAmbient() {
     const bezel = document.getElementById('compass-bezel');
     if (bezel) {
         window._compassAmbientAnims.push(
+            // Relative "+=360deg" so each loop continues from wherever
+            // the bezel actually is (including right after a drag
+            // coast) instead of jumping back to an absolute 0→360deg
+            // sweep and snapping on repeat.
             anime.animate(bezel, {
-                rotate: '360deg',
-                duration: 200000,
+                rotate: '+=360deg',
+                duration: COMPASS_AMBIENT_MS_PER_TURN,
                 loop: true,
                 ease: 'linear',
             })
@@ -876,7 +1007,7 @@ const PIPELINE_STEP_DEFS = [
     { title: 'Cloning repository', sub: 'Fetching source from GitHub', icon: ICON_CLONE },
     { title: 'Parsing & chunking', sub: 'Splitting code along AST boundaries', icon: ICON_CHUNK },
     { title: 'Generating embeddings', sub: 'Encoding chunks locally (MiniLM)', icon: ICON_EMBED },
-    { title: 'Indexing', sub: 'Storing vectors in the Chroma store', icon: ICON_INDEX },
+    { title: 'Indexing', sub: 'Storing vectors in Supabase/Postgres with pgvector extension', icon: ICON_INDEX },
     { title: 'Ready', sub: 'Answers will cite real code', icon: ICON_READY },
 ];
 

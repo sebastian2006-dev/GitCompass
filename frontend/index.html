@@ -23,9 +23,9 @@
     <div id="landing-page" class="screen landing-page">
         <!-- Signature visual: a slowly-turning compass rose, needle finding
              true north, embossed in the same soft neumorphic language as
-             the rest of the UI. Draggable — grab it and spin it by hand.
-             Built at runtime and animated with anime.js (see
-             animateCompassBg / initCompassDrag in app.js). -->
+             the rest of the UI. Draggable — grab it anywhere on the dial
+             and spin it by hand. Built at runtime and animated with
+             anime.js (see animateCompassBg / initCompassDrag in app.js). -->
         <div class="compass-bg" id="compass-bg" aria-hidden="true">
             <svg class="compass-svg" id="compass-svg" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
                 <defs>
@@ -48,10 +48,25 @@
                         <stop offset="0%" stop-color="#c99a5b" stop-opacity="0.55" />
                         <stop offset="100%" stop-color="#e0b779" stop-opacity="0.9" />
                     </linearGradient>
+                    <radialGradient id="sweepGradient" cx="0%" cy="0%" r="100%">
+                        <stop offset="0%" stop-color="#ef4444" stop-opacity="0.5" />
+                        <stop offset="100%" stop-color="#ef4444" stop-opacity="0" />
+                    </radialGradient>
                 </defs>
 
+                <!-- Background ambience — painted first so it always sits
+                     behind the compass itself. A slow radar-style sweep
+                     wedge, a few sonar-ping rings that expand outward on
+                     a loop, and faint drifting dust motes scattered past
+                     the housing's edge. All non-interactive. -->
+                <g id="compass-sweep" class="compass-sweep" aria-hidden="true">
+                    <path d="M500,500 L500,40 A460,460 0 0,1 830,190 Z" fill="url(#sweepGradient)" />
+                </g>
+                <g id="compass-sonar" class="compass-sonar" aria-hidden="true"></g>
+                <g id="compass-dust" class="compass-dust" aria-hidden="true"></g>
+
                 <!-- outer housing -->
-                <circle class="compass-housing compass-interactive" cx="500" cy="500" r="270" fill="url(#compassFace)"
+                <circle class="compass-housing" cx="500" cy="500" r="270" fill="url(#compassFace)"
                     filter="url(#compassEmboss)" />
                 <circle class="compass-housing-rim" cx="500" cy="500" r="270" />
 
@@ -70,6 +85,12 @@
                     <circle class="needle-hub" cx="500" cy="500" r="15" />
                     <circle class="needle-hub-core" cx="500" cy="500" r="6" />
                 </g>
+
+                <!-- Invisible hit target, drawn last so it's the topmost
+                     paint across the whole dial — grabbing anywhere on the
+                     housing, bezel, dial, or needle all start the same
+                     drag (see initCompassDrag in app.js). -->
+                <circle class="compass-hit-target" cx="500" cy="500" r="270" />
             </svg>
         </div>
 

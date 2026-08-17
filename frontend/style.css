@@ -143,8 +143,9 @@ body {
    "north" on load and then idles with a faint, realistic wobble.
    Everything is rendered in SVG so it stays crisp and can be embossed
    with the same dark/light shadow pairs used across the rest of the
-   UI. The dial itself is draggable — grabbing it and dragging spins
-   the whole compass by hand (see initCompassDrag in app.js). */
+   UI. The dial itself is draggable — grabbing it anywhere on the
+   circle and dragging spins the whole compass by hand (see
+   initCompassDrag in app.js). */
 .compass-bg {
     position: absolute;
     inset: 0;
@@ -164,17 +165,24 @@ body {
     will-change: transform;
 }
 
-.compass-interactive {
-    pointer-events: auto;
+/* Invisible circle drawn last (topmost paint) across the whole dial —
+   this is what actually receives pointer events for dragging, so
+   grabbing anywhere on the housing, bezel, dial, or needle all start
+   the same rotation instead of only wherever the housing fill happens
+   to be uncovered by the other layered shapes. */
+.compass-hit-target {
+    fill: transparent;
+    pointer-events: all;
     cursor: grab;
 }
 
-.compass-interactive:active {
+.compass-hit-target:active {
     cursor: grabbing;
 }
 
 .compass-housing {
     opacity: 0;
+    pointer-events: none;
 }
 
 .compass-housing-rim {
@@ -182,12 +190,14 @@ body {
     stroke: var(--border-hairline-strong);
     stroke-width: 1.5;
     opacity: 0;
+    pointer-events: none;
 }
 
 .compass-bezel,
 .compass-needle {
     transform-box: fill-box;
     transform-origin: center;
+    pointer-events: none;
 }
 
 .compass-tick {
@@ -216,6 +226,7 @@ body {
     stroke: rgba(0, 0, 0, 0.4);
     stroke-width: 1;
     opacity: 0;
+    pointer-events: none;
 }
 
 .needle-north,
@@ -232,6 +243,36 @@ body {
 
 .needle-hub-core {
     fill: var(--accent);
+    opacity: 0;
+}
+
+/* Background ambience behind the compass — a slow radar sweep wedge,
+   looping sonar-ping rings, and faint drifting dust motes. Painted
+   first (bottom of the SVG stack) and fully non-interactive. */
+.compass-sweep,
+.compass-sonar,
+.compass-dust {
+    pointer-events: none;
+}
+
+.compass-sweep {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.compass-sweep path {
+    opacity: 0.06;
+}
+
+.sonar-ring {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    opacity: 0;
+}
+
+.compass-dust-dot {
+    fill: var(--text-secondary);
     opacity: 0;
 }
 
@@ -254,6 +295,13 @@ body {
     flex-shrink: 0;
 }
 
+/* landing-content sits visually on top of the compass (z-index 1) but
+   must not block pointer events across its whole bounding box — most
+   of that box is transparent space around the centered copy, and
+   without this the compass underneath would only be draggable in the
+   sliver of the circle poking out past the content box (in practice,
+   just the very top of the dial). Only the actual interactive
+   elements (buttons) opt back in below. */
 .landing-content {
     position: relative;
     z-index: 1;
@@ -264,6 +312,7 @@ body {
     gap: 1.75rem;
     padding: 2rem;
     max-width: 680px;
+    pointer-events: none;
 }
 
 .landing-badge {
@@ -320,6 +369,7 @@ body {
     display: flex;
     gap: 0.75rem;
     opacity: 0;
+    pointer-events: auto;
 }
 
 .landing-features {
